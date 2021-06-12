@@ -10,13 +10,18 @@
 #' @examples
 #' N = 10; lower = -100; upper = 100; sphere = function(x) base::crossprod(x)
 #' des(
-#'  par = runif(N, lower, upper),
+#'  par = runif(N, lower, upper),  [0.8*lower + rand() * (0.8*upper-0.8*lower) for i in 1:N]
 #'  fn = sphere,
 #'  lower = lower,
 #'  upper = upper,
 #'  control = list(Ft = 5)
 #')
 
+
+# des(par, crossprod, -100, 100, Dict("Ft"=>5))
+# push!(x, 5)
+#pop!(x) - zwraca ostatni element
+#Dict([("ss", 1), ("xx",2),("zz", "aa")])
 des <- function(par, fn, ..., lower, upper, control = list()) {
   controlParam <- function(name, default) {
     v <- control[[name]]
