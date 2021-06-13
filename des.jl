@@ -54,7 +54,7 @@
          end
        end
        if pom == true
-         counteval = counteval + 1 # powinno byc <<- zamiast =
+        counteval = counteval + 1 # powinno byc <<- zamiast =
          return fn(x)
        else
          return prevfloat(typemax(Float64))
@@ -69,27 +69,20 @@ function apply(x, f)
   return r
 end
 
-
      function fn_l(P)
-       if ndims(P) == 2 && size(P, 2) != 1#if is.matrix()
+       if ndims(P) == 2 && size(P, 2) != 1 #if is.matrix()
           if counteval + size(P, 2) <= budget
             x = apply(P, fn_) #mapslices(fn_, P, dims=[1])
-            if length(x) < 40
-               print("retrurn 1 ")
-               print(P)
-                print(x)
-            end
             return x #jesli ma byc na kolumnach to 1, a na wiersach to 2
           else
             ret = []
             budLeft = budget - counteval
             if budLeft > 0
-              for i in budLeft
+              for i in 1:budLeft
                 append!(ret, fn_(P[:,i]))
               end
             end
             x = append!(ret, repeat([prevfloat(typemax(Float64))], size(P, 2) - budLeft))
-
             return x
           end
        else
@@ -107,7 +100,7 @@ end
 
        if ndims(P) == 2 && ndims(P_repaired) == 2
          repairedInd = []
-         for i in size(P,2)
+         for i in 1:size(P,2)
            append!(repairedInd, P[:,[i]] != P_repaired[:,[i]])
          end
          P_fit = fitness
@@ -115,23 +108,8 @@ end
          vecDist = apply(P_pom,sum) # mapslices(sum, P_pom, dims=[1])
          if length(vecDist) == 1
            P_fit[findall(repairedInd)] = vecDist[findall(repairedInd)] + worst_fit
-
-           if typeof(P_fit[1]) == typeof([])
-            print("if1: ")
-             print(P_fit)
-
-          end
          else
-           if typeof(P_fit[1]) == typeof([])
-            print("before_if_2: ")
-             print(P_fit)
-           end
            P_fit[findall(repairedInd)] = vecDist[findall(repairedInd)].+ worst_fit
-
-           if typeof(P_fit[1]) == typeof([])
-           print("if_2: ")
-             print(P_fit)
-           end
          end
          P_fit = deleteInfsNaNs(P_fit)
          return P_fit
@@ -139,7 +117,7 @@ end
          P_fit = fitness
          if P != P_repaired
           P_pom = (P - P_repaired).^2
-           P_fit = worst_fit + mapslices(sum, P_pom, dims=[1,2])
+           P_fit = worst_fit + sum(P_pom) #mapslices(sum, P_pom, dims=[1,2])
            P_fit = deleteInfsNaNs(P_fit)
          end
          return P_fit
@@ -285,6 +263,7 @@ iter = 0 ## Number of iterations
       selection = fill(0, convert(Int64,mu))
       selectedPoints =  zeros(N, convert(Int64,mu))
       fitness = fn_l(population)
+
       oldMean = zeros(N)
       newMean = par
       limit = 0
@@ -315,7 +294,7 @@ iter = 0 ## Number of iterations
         weights = weights / sum(weights)
 
         if log_Ft
-           Ft.log = vcat(Ft_log, Ft) #ktores musi byc transpose()
+           Ft_log = vcat(Ft_log, Ft) #ktores musi byc transpose()
         end
         if log_value
            value_log = vcat(value_log, fitness)
@@ -338,6 +317,7 @@ iter = 0 ## Number of iterations
         if log_eigen
            eigen_log = vcat(eigen_log, reverse(sort(eigvals(cov(transpose(population))))))
         end
+
 
         ## Select best 'mu' individuals of popu-lation
        selection = sortperm(vec(fitness))[1:convert(Int64,mu)]
@@ -400,12 +380,13 @@ iter = 0 ## Number of iterations
      # Check constraints violations
      # Repair the individual if necessary
      populationTemp = population
-     populationRepaired = mapslices(bounceBackBoundary2, population, dims=[1]) # apply(population, 2, bounceBackBoundary2)
-
+     populationRepaired = apply(population, bounceBackBoundary2) #mapslices(bounceBackBoundary2, population, dims=[1]) # apply(population, 2, bounceBackBoundary2)
+    populationRepaired = reshape( hcat(populationRepaired...), size(populationTemp,1), size(populationTemp, 2)) #dodane
      counterRepaired = 0
      for tt in 1:size(populationTemp,2)
-       #print("xx:")
-       #print(populationRepaired)
+      # print("xx:")
+      # print(populationRepaired)
+      # y = reshape( hcat(populationRepaired...), size(populationTemp,1), size(populationTemp, 2))
        if any(populationTemp[:, tt] != populationRepaired[:, tt])
          counterRepaired = counterRepaired + 1
        end
@@ -418,10 +399,12 @@ iter = 0 ## Number of iterations
       popMean =  drop(population * weightsPop)
 
       ## Evaluation
+
       fitness = fn_l(population)
       if Lamarckism == false
         fitnessNonLamarcian = fn_d(population, populationRepaired, fitness)
       end
+
 
       ## Break if fit :
       wb = argmin(vec(fitness))
@@ -452,7 +435,6 @@ iter = 0 ## Number of iterations
 
       fn_cum = fn_l(cumMeanRepaired)
 
-
       if fn_cum[1] < best_fit[1]
         best_fit = fn_cum #drop(fn_cum)
         best_par = cumMeanRepaired
@@ -464,7 +446,6 @@ iter = 0 ## Number of iterations
       end
 
       end
-
 
     end
 
@@ -510,16 +491,13 @@ iter = 0 ## Number of iterations
      ]
      #class(res) <- "des.result"
 
-
      return res
-
-
   end
 
 
 function rnormFromMatrix(m)
-  for i in size(m, 1)
-    for j in size(m, 2)
+  for i in 1:size(m, 1)
+    for j in 1:size(m, 2)
       m[i,j]=randn(m[i, j])
     end
   end

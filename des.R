@@ -61,6 +61,7 @@ des <- function(par, fn, ..., lower, upper, control = list()) {
     }
   }
 
+
   ## Fitness function wrapper for Lamarcian approach
   fn_l <- function(P) {
     if (is.matrix(P)) {
@@ -426,7 +427,7 @@ des <- function(par, fn, ..., lower, upper, control = list()) {
     value = best.fit,
     counts = cnt,
     resets = restart.number,
-    convergence = ifelse(iter >= maxiter, 1L, 0L),
+    convergence = ifelse( >= maxiter, 1L, 0L),
     message = msg,
     diagnostic = log
   )
