@@ -16,12 +16,17 @@
 #'  upper = upper,
 #'  control = list(Ft = 5)
 #')
+#Base.log.(repeat([mu + 1],convert(Int64, mu))) - Base.log.(1:convert(Int64, mu))
 
-
+#log.(repeat([mu + 1],mu)) - log.(1:mu)
+#  Pkg.add("DataArrays")
 # des(par, crossprod, -100, 100, Dict("Ft"=>5))
 # push!(x, 5)
 #pop!(x) - zwraca ostatni element
 #Dict([("ss", 1), ("xx",2),("zz", "aa")])
+
+# rnorm => rand(Normal(), length(diffs))
+
 des <- function(par, fn, ..., lower, upper, control = list()) {
   controlParam <- function(name, default) {
     v <- control[[name]]
