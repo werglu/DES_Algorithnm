@@ -10,13 +10,19 @@
 #' @examples
 #' N = 10; lower = -100; upper = 100; sphere = function(x) base::crossprod(x)
 #' des(
-#'  par = runif(N, lower, upper),  [0.8*lower + rand() * (0.8*upper-0.8*lower) for i in 1:N]
+#'  par = runif(N, lower, upper),  par=[0.8*lower + rand() * (0.8*upper-0.8*lower) for i in 1:N]
 #'  fn = sphere,
 #'  lower = lower,
 #'  upper = upper,
 #'  control = list(Ft = 5)
 #')
 #Base.log.(repeat([mu + 1],convert(Int64, mu))) - Base.log.(1:convert(Int64, mu))
+	c         r           g
+N=5 0.717032  0.311330 0.346815
+N=10 0.567957   0.571382  0.593100
+N=20 1.844747   1.260884  1.377259
+N=50  26.796848  37.902917  45.001581
+N=100
 
 #log.(repeat([mu + 1],mu)) - log.(1:mu)
 #  Pkg.add("DataArrays")
