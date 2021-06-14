@@ -46,7 +46,7 @@
 
      function fn_(x)
        if all(x.>=lower) && all(x.<=upper)
-         counteval = counteval + 1 # powinno byc <<- zamiast =
+         counteval = counteval + 1
          return fn(x)
        else
          return prevfloat(typemax(Float64))
@@ -61,35 +61,34 @@
       return r
     end
 
-     function fn_l(P)
-       if ndims(P) == 2 && size(P, 2) != 1 #if is.matrix()
-          if (counteval + size(P, 2)) <= budget
-            x = apply(P, fn_) #mapslices(fn_, P, dims=[1])
-            return x
-          else
-            ret = []
-            budLeft = budget - counteval
-            if budLeft > 0
-              for i in 1:budLeft
-                append!(ret, fn_(P[:,i]))
-              end
+   function fn_l(P)
+     if ndims(P) == 2 && size(P, 2) != 1 #if is.matrix()
+        if (counteval + size(P, 2)) <= budget
+          x = apply(P, fn_)
+          return x
+        else
+          ret = []
+          budLeft = budget - counteval
+          if budLeft > 0
+            for i in 1:budLeft
+              append!(ret, fn_(P[:,i]))
             end
-            x = append!(ret, repeat([prevfloat(typemax(Float64))], size(P, 2) - budLeft))
-            return x
           end
+          x = append!(ret, repeat([prevfloat(typemax(Float64))], size(P, 2) - budLeft))
+          return x
+        end
+     else
+       if counteval < budget
+         return fn_(P)
        else
-         if counteval < budget
-           return fn_(P)
-         else
-           return prevfloat(typemax(Float64))
-         end
+         return prevfloat(typemax(Float64))
        end
      end
+   end
 
      function fn_d(P, P_repaired, fitness)
        P = deleteInfsNaNs(P)
        P_repaired = deleteInfsNaNs(P_repaired)
-
 
        if ndims(P) == 2 && ndims(P_repaired) == 2
          repairedInd = []
@@ -98,7 +97,7 @@
          end
          P_fit = fitness
          P_pom = (P - P_repaired).^2
-         vecDist = apply(P_pom,sum) # mapslices(sum, P_pom, dims=[1])
+         vecDist = apply(P_pom,sum)
          if length(vecDist) == 1
            P_fit[findall(repairedInd)] = vecDist[findall(repairedInd)] + worst_fit
          else
@@ -110,7 +109,7 @@
          P_fit = fitness
          if P != P_repaired
           P_pom = (P - P_repaired).^2
-           P_fit = worst_fit + sum(P_pom) #mapslices(sum, P_pom, dims=[1,2])
+           P_fit = worst_fit + sum(P_pom)
            P_fit = deleteInfsNaNs(P_fit)
          end
          return P_fit
@@ -120,7 +119,7 @@
      function bounceBackBoundary2(x)
        pom = true
        for i in eachindex(x)
-         if x[i] <= lower || x[i] >= upper #lower[i] i upper[i]
+         if x[i] <= lower || x[i] >= upper
            pom = false
          end
        end
@@ -141,10 +140,10 @@
 
      N = length(par)
 
-     #############################
-      ##  Algorithm parameters:  ##
-      #############################
-      Ft          = controlParam("Ft", 5) ## Scaling factor of difference vectors (a variable!)
+    #############################
+    ##  Algorithm parameters:  ##
+    #############################
+      Ft          = controlParam("Ft", 1) ## Scaling factor of difference vectors (a variable!)
       initFt      = controlParam("initFt", 1)
       stopfitness = controlParam("stopfitness", -Inf) ## Fitness value after which the convergence is reached
        ## Strategy parameter setting:
@@ -165,7 +164,7 @@
        histSize    = controlParam("history", ceil(6 + ceil(3 * sqrt(N)))) ## Size of the window of history - the step length history
        Ft_scale    = controlParam("Ft_scale", ((mueff + 2) / (N + mueff + 3)) / (1 + 2 * max(0, sqrt((mueff - 1) / (N + 1)) - 1) + (mueff + 2) / (N + mueff + 3)))
        tol         = controlParam("tol", 10^-12)
-       counteval   = 0 ## Number of function evaluations
+       counteval   = 0 # Number of function evaluations
        sqrt_N      = sqrt(N)
 
        log_all = controlParam("diag", false)
@@ -177,17 +176,11 @@
        log_bestVal = controlParam("diag.bestVal", log_all)
        log_worstVal = controlParam("diag.worstVal", log_all)
        log_eigen = controlParam("diag.eigen", log_all)
-
-       # nonLamarckian approach allows individuals to violate boundaries.
-        #Fitness value is estimeted by fitness of repaired individual.
-        Lamarckism = controlParam("Lamarckism", false)
-        # Fitness function wrapper
-
-        # Asserts - safety checks
+       Lamarckism = controlParam("Lamarckism", false)
 
         best_fit = Inf # The best fitness found so far
         best_par = nothing # The best solution found so far
-        worst_fit = nothing # The worst solution found so far:
+        worst_fit = nothing # The worst solution found so far
         last_restart = 0
         restart_length = 0
         restart_number = 0
@@ -241,15 +234,12 @@
       history = [] ## List stores best 'mu'(variable) individuals for 'hsize' recent iterations
       Ft = initFt
 
-
       # Create fisrt population
       population =rand(N,lambda).*(0.8*upper-0.8*lower).+0.8*lower #repeat([0.8*lower + rand() * (0.8*upper-0.8*lower) for i in 1:N],1, lambda)
-
 
       cumMean = (upper + lower) / 2
 
       populationRepaired = reshape(apply(population, bounceBackBoundary2), N, lambda)#mapslices(bounceBackBoundary2, population, dims=[1]) #     populationRepaired <- apply(population, 2, bounceBackBoundary2)
-
 
       if Lamarckism == true
         population = populationRepaired
@@ -331,7 +321,6 @@
        oldMean = newMean
        newMean = drop(selectedPoints * weights)
 
-
        ## Write to buffers
        muMean = newMean
        dMean[:, convert(Int64,histHead)] = (muMean - popMean)./ Ft
@@ -343,7 +332,7 @@
       oldFt = Ft
 
       ## Update parameters
-      if histHead == 1
+      if  convert(Int64,histHead) == 1
         pc[:, convert(Int64,histHead)] = fill(0.0, N).*(1 - cp)./ sqrt(N) + step.*sqrt(mu * cp * (2 - cp))
       else
         pc[:, convert(Int64,histHead)] = pc[:, convert(Int64,histHead - 1)].*(1 - cp) + step.*sqrt(mu * cp * (2 - cp))
@@ -468,8 +457,6 @@
       log_eigen = eigen_log
     end
 
-    #best_fit = nothing #sprawdzic o co chodzi z names(best.fit) <- null
-
      res = [
        best_par,
        best_fit,
@@ -496,13 +483,12 @@ function rnormFromMatrix(m)
 end
 
 
-  function crossprod(x)
-  #  print(x)
-    if size(x, 2) == 1
-      return sum(x.^2)
-    end
-    return transpose(x)*x
+function crossprod(x)
+  if size(x, 2) == 1
+    return sum(x.^2)
   end
+  return transpose(x)*x
+end
 
 function rastrigin(x)
   d = length(x)
