@@ -86,129 +86,127 @@
      end
    end
 
-     function fn_d(P, P_repaired, fitness)
-       P = deleteInfsNaNs(P)
-       P_repaired = deleteInfsNaNs(P_repaired)
+   function fn_d(P, P_repaired, fitness)
+     P = deleteInfsNaNs(P)
+     P_repaired = deleteInfsNaNs(P_repaired)
 
-       if ndims(P) == 2 && ndims(P_repaired) == 2
-         repairedInd = []
-         for i in 1:size(P,2)
-           append!(repairedInd,  all(P[:,i].!= P_repaired[:,i]))
-         end
-         P_fit = fitness
-         P_pom = (P - P_repaired).^2
-         vecDist = apply(P_pom,sum)
-         if length(vecDist) == 1
-           P_fit[findall(repairedInd)] = vecDist[findall(repairedInd)] + worst_fit
-         else
-           P_fit[findall(repairedInd)] = vecDist[findall(repairedInd)].+ worst_fit
-         end
-         P_fit = deleteInfsNaNs(P_fit)
-         return P_fit
+     if ndims(P) == 2 && ndims(P_repaired) == 2
+       repairedInd = []
+       for i in 1:size(P,2)
+         append!(repairedInd,  all(P[:,i].!= P_repaired[:,i]))
+       end
+       P_fit = fitness
+       P_pom = (P - P_repaired).^2
+       vecDist = apply(P_pom,sum)
+       if length(vecDist) == 1
+         P_fit[findall(repairedInd)] = vecDist[findall(repairedInd)] + worst_fit
        else
-         P_fit = fitness
-         if P != P_repaired
-          P_pom = (P - P_repaired).^2
-           P_fit = worst_fit + sum(P_pom)
-           P_fit = deleteInfsNaNs(P_fit)
-         end
-         return P_fit
+         P_fit[findall(repairedInd)] = vecDist[findall(repairedInd)].+ worst_fit
+       end
+       P_fit = deleteInfsNaNs(P_fit)
+       return P_fit
+     else
+       P_fit = fitness
+       if P != P_repaired
+        P_pom = (P - P_repaired).^2
+         P_fit = worst_fit + sum(P_pom)
+         P_fit = deleteInfsNaNs(P_fit)
+       end
+       return P_fit
+     end
+   end
+
+   function bounceBackBoundary2(x)
+     pom = true
+     for i in eachindex(x)
+       if x[i] <= lower || x[i] >= upper
+         pom = false
        end
      end
-
-     function bounceBackBoundary2(x)
-       pom = true
-       for i in eachindex(x)
-         if x[i] <= lower || x[i] >= upper
-           pom = false
-         end
+     if pom == true
+       return x
+     elseif any(x.<lower)
+       for i in findall(x.<lower)
+         x[i] = lower + abs(lower - x[i]) % (upper - lower)
        end
-       if pom == true
-         return x
-       elseif any(x.<lower)
-         for i in findall(x.<lower)
-           x[i] = lower + abs(lower - x[i]) % (upper - lower)
-         end
-       elseif any(x.>upper)
-         for i in findall(x.>upper)
-           x[i] = upper - abs(upper - x[i]) % (upper - lower)
-         end
+     elseif any(x.>upper)
+       for i in findall(x.>upper)
+         x[i] = upper - abs(upper - x[i]) % (upper - lower)
        end
-       x = deleteInfsNaNs(x)
-       return bounceBackBoundary2(x)
      end
+     x = deleteInfsNaNs(x)
+     return bounceBackBoundary2(x)
+   end
 
-     N = length(par)
+   N = length(par)
 
-    #############################
-    ##  Algorithm parameters:  ##
-    #############################
-      Ft          = controlParam("Ft", 1) ## Scaling factor of difference vectors (a variable!)
-      initFt      = controlParam("initFt", 1)
-      stopfitness = controlParam("stopfitness", -Inf) ## Fitness value after which the convergence is reached
-       ## Strategy parameter setting:
-       budget      = controlParam("budget", 10000 * N) ## The maximum number of fitness function calls
-       initlambda  = controlParam("lambda", 4 * N) ## Population starting size
-       lambda      = initlambda ## Population size
-       mu          = controlParam("mu", floor(lambda / 2)) ## Selection size
-       weights     = controlParam("weights", Base.log.(repeat([mu + 1],convert(Int64, mu))) - Base.log.(1:convert(Int64, mu))) ## Weights to calculate mean from selected individuals
-       weights     = weights / sum(weights) ##    \-> weights are normalized by the sum
-       weightsSumS = sum(weights.^2) ## weights sum square
-       mueff       = controlParam("mueff", sum(weights)^2 / sum(weights.^2)) ## Variance effectiveness factor
-       cc          = controlParam("ccum", mu / (mu + 2)) ## Evolution Path decay factor
-       pathLength  = controlParam("pathLength", 6) ## Size of evolution path
-       cp          = controlParam("cp", 1 / sqrt(N)) ## Evolution Path decay factor
-       maxiter     = controlParam("maxit", floor(budget / (lambda + 1)))#floor(budget / (lambda + 1))) ## Maximum number of iterations after which algorithm stops
-       c_Ft        = controlParam("c_Ft", 0)
-       pathRatio   = controlParam("pathRatio", sqrt(pathLength)) ## Path Length Control reference value
-       histSize    = controlParam("history", ceil(6 + ceil(3 * sqrt(N)))) ## Size of the window of history - the step length history
-       Ft_scale    = controlParam("Ft_scale", ((mueff + 2) / (N + mueff + 3)) / (1 + 2 * max(0, sqrt((mueff - 1) / (N + 1)) - 1) + (mueff + 2) / (N + mueff + 3)))
-       tol         = controlParam("tol", 10^-12)
-       counteval   = 0 # Number of function evaluations
-       sqrt_N      = sqrt(N)
+   # Algorithm parameters
+   Ft          = controlParam("Ft", 1) # Scaling factor of difference vectors (a variable!)
+   initFt      = controlParam("initFt", 1)
+   stopfitness = controlParam("stopfitness", -Inf) # Fitness value after which the convergence is reached
+   # Strategy parameter setting:
+   budget      = controlParam("budget", 10000 * N) # The maximum number of fitness function calls
+   initlambda  = controlParam("lambda", 4 * N) # Population starting size
+   lambda      = initlambda ## Population size
+   mu          = controlParam("mu", floor(lambda / 2)) # Selection size
+   weights     = controlParam("weights", Base.log.(repeat([mu + 1],convert(Int64, mu))) - Base.log.(1:convert(Int64, mu))) # Weights to calculate mean from selected individuals
+   weights     = weights / sum(weights) # weights are normalized by the sum
+   weightsSumS = sum(weights.^2) # weights sum square
+   mueff       = controlParam("mueff", sum(weights)^2 / sum(weights.^2)) # Variance effectiveness factor
+   cc          = controlParam("ccum", mu / (mu + 2)) # Evolution Path decay factor
+   pathLength  = controlParam("pathLength", 6) # Size of evolution path
+   cp          = controlParam("cp", 1 / sqrt(N)) # Evolution Path decay factor
+   maxiter     = controlParam("maxit", floor(budget / (lambda + 1))) # Maximum number of iterations after which algorithm stops
+   c_Ft        = controlParam("c_Ft", 0)
+   pathRatio   = controlParam("pathRatio", sqrt(pathLength)) # Path Length Control reference value
+   histSize    = controlParam("history", ceil(6 + ceil(3 * sqrt(N)))) # Size of the window of history - the step length history
+   Ft_scale    = controlParam("Ft_scale", ((mueff + 2) / (N + mueff + 3)) / (1 + 2 * max(0, sqrt((mueff - 1) / (N + 1)) - 1) + (mueff + 2) / (N + mueff + 3)))
+   tol         = controlParam("tol", 10^-12)
+   counteval   = 0 # Number of function evaluations
+   sqrt_N      = sqrt(N)
 
-       log_all = controlParam("diag", false)
-       log_Ft = controlParam("diag.Ft", log_all)
-       log_value = controlParam("diag.value", log_all)
-       log_mean = controlParam("diag.mean", log_all)
-       log_meanCord = controlParam("diag.meanCords", log_all)
-       log_pop = controlParam("diag.pop", log_all)
-       log_bestVal = controlParam("diag.bestVal", log_all)
-       log_worstVal = controlParam("diag.worstVal", log_all)
-       log_eigen = controlParam("diag.eigen", log_all)
-       Lamarckism = controlParam("Lamarckism", false)
+   log_all = controlParam("diag", false)
+   log_Ft = controlParam("diag.Ft", log_all)
+   log_value = controlParam("diag.value", log_all)
+   log_mean = controlParam("diag.mean", log_all)
+   log_meanCord = controlParam("diag.meanCords", log_all)
+   log_pop = controlParam("diag.pop", log_all)
+   log_bestVal = controlParam("diag.bestVal", log_all)
+   log_worstVal = controlParam("diag.worstVal", log_all)
+   log_eigen = controlParam("diag.eigen", log_all)
+   Lamarckism = controlParam("Lamarckism", false)
 
-        best_fit = Inf # The best fitness found so far
-        best_par = nothing # The best solution found so far
-        worst_fit = nothing # The worst solution found so far
-        last_restart = 0
-        restart_length = 0
-        restart_number = 0
+    best_fit = Inf # The best fitness found so far
+    best_par = nothing # The best solution found so far
+    worst_fit = nothing # The worst solution found so far
+    last_restart = 0
+    restart_length = 0
+    restart_number = 0
 
-        if log_Ft
-          Ft_log = zeros(0, 1)
-        end
-        if log_value
-          value_log = zeros(0, lambda)
-        end
-        if log_mean
-          mean_log = zeros(0, 1)
-        end
-        if log_meanCord
-          meanCords_log = zeros(0, N)
-        end
-        if log_pop
-          pop_log = zeros(N, lambda, maxiter)
-        end
-        if log_bestVal
-          bestVal_log = zeros(0, 1)
-        end
-        if log_worstVal
-          worstVal_log = zeros(0, 1)
-        end
-        if log_eigen
-          eigen_log = zeros(0, N)
-        end
+    if log_Ft
+      Ft_log = zeros(0, 1)
+    end
+    if log_value
+      value_log = zeros(0, lambda)
+    end
+    if log_mean
+      mean_log = zeros(0, 1)
+    end
+    if log_meanCord
+      meanCords_log = zeros(0, N)
+    end
+    if log_pop
+      pop_log = zeros(N, lambda, maxiter)
+    end
+    if log_bestVal
+      bestVal_log = zeros(0, 1)
+    end
+    if log_worstVal
+      worstVal_log = zeros(0, 1)
+    end
+    if log_eigen
+      eigen_log = zeros(0, N)
+    end
 
     # buffers:
     dMean = zeros(N, convert(Int64,histSize))
@@ -229,17 +227,17 @@
       weightsPop = Base.log.(repeat([lambda + 1],convert(Int64, lambda))) - Base.log.(1:convert(Int64, lambda))
       weightsPop = weightsPop / sum(weightsPop)
 
-      histHead = 0 ## Pointer to the history buffer head
-      iter = 0 ## Number of iterations
-      history = [] ## List stores best 'mu'(variable) individuals for 'hsize' recent iterations
+      histHead = 0 # Pointer to the history buffer head
+      iter = 0 # Number of iterations
+      history = [] # List stores best 'mu'(variable) individuals for 'hsize' recent iterations
       Ft = initFt
 
       # Create fisrt population
-      population =rand(N,lambda).*(0.8*upper-0.8*lower).+0.8*lower #repeat([0.8*lower + rand() * (0.8*upper-0.8*lower) for i in 1:N],1, lambda)
+      population = rand(N,lambda).*(0.8*upper-0.8*lower).+0.8*lower
 
       cumMean = (upper + lower) / 2
 
-      populationRepaired = reshape(apply(population, bounceBackBoundary2), N, lambda)#mapslices(bounceBackBoundary2, population, dims=[1]) #     populationRepaired <- apply(population, 2, bounceBackBoundary2)
+      populationRepaired = reshape(apply(population, bounceBackBoundary2), N, lambda)
 
       if Lamarckism == true
         population = populationRepaired
@@ -255,20 +253,20 @@
       worst_fit = maximum(fitness)
 
       # Store population and selection means
-       popMean = drop(population * weightsPop)
-       muMean = newMean
+     popMean = drop(population * weightsPop)
+     muMean = newMean
 
-       ## Matrices for creating diffs
-       diffs = zeros(N, lambda)
-       x1sample = zeros(lambda)
-       x2sample = zeros(lambda)
+     # Matrices for creating diffs
+     diffs = zeros(N, lambda)
+     x1sample = zeros(lambda)
+     x2sample = zeros(lambda)
 
-       chiN = sqrt(N)
+     chiN = sqrt(N)
 
-       histNorm = 1 / sqrt(2)
-       counterRepaired = 0
+     histNorm = 1 / sqrt(2)
+     counterRepaired = 0
 
-       stoptol = false
+     stoptol = false
 
       while counteval < budget && !stoptol
         iter = iter + 1
@@ -278,9 +276,8 @@
         weights = Base.log.(repeat([mu + 1],convert(Int64, mu))) - Base.log.(1:convert(Int64, mu))
         weights = weights / sum(weights)
 
-
         if log_Ft
-           Ft_log = vcat(Ft_log, Ft) #ktores musi byc transpose()
+           Ft_log = vcat(Ft_log, Ft)
         end
         if log_value
            value_log = vcat(value_log, fitness)
@@ -295,7 +292,7 @@
           pop_log[:, :, iter] = population
         end
         if log_bestVal
-           bestVal_log = vcat(bestVal_log, minimum(minimum(bestVal_log), minimum(fitness))) #supressWarnings było
+           bestVal_log = vcat(bestVal_log, minimum(minimum(bestVal_log), minimum(fitness)))
         end
         if log_worstVal
            worstVal_log = vcat(worstVal_log, maximum(maximum(worstVal_log), maximum(fitness)))
@@ -304,41 +301,34 @@
            eigen_log = vcat(eigen_log, reverse(sort(eigvals(cov(transpose(population))))))
         end
 
-        ## Select best 'mu' individuals of popu-lation
+       # Select best 'mu' individuals of popu-lation
        selection = sortperm(vec(fitness))[1:convert(Int64,mu)]
        selectedPoints = population[:, selection]
 
-       # Save selected population in the history buffer
+       push!(history, selectedPoints.* histNorm./ Ft)
 
-
-      # history[convert(Int64,histHead)] = zeros(N, convert(Int64,mu))
-      # push!(history[convert(Int64,histHead)] = selectedPoints.* histNorm / Ft
-      #history[convert(Int64,histHead)] = zeros(N, convert(Int64,mu))
-
-      push!(history, selectedPoints.* histNorm./ Ft)#reshape(selectedPoints.* histNorm./ Ft, N, convert(Int64,mu)))
-
-       ## Calculate weighted mean of selected points
+       # Calculate weighted mean of selected points
        oldMean = newMean
        newMean = drop(selectedPoints * weights)
 
-       ## Write to buffers
+       # Write to buffers
        muMean = newMean
        dMean[:, convert(Int64,histHead)] = (muMean - popMean)./ Ft
 
        step = (newMean - oldMean)./ Ft
 
-       ## Update Ft
-      FtHistory[convert(Int64,histHead)] = Ft
-      oldFt = Ft
+       # Update Ft
+       FtHistory[convert(Int64,histHead)] = Ft
+       oldFt = Ft
 
-      ## Update parameters
+      # Update parameters
       if  convert(Int64,histHead) == 1
         pc[:, convert(Int64,histHead)] = fill(0.0, N).*(1 - cp)./ sqrt(N) + step.*sqrt(mu * cp * (2 - cp))
       else
         pc[:, convert(Int64,histHead)] = pc[:, convert(Int64,histHead - 1)].*(1 - cp) + step.*sqrt(mu * cp * (2 - cp))
       end
 
-      ## Sample from history with uniform distribution
+      # Sample from history with uniform distribution
       if iter < histSize
         limit = histHead
       else
@@ -350,27 +340,26 @@
       x1sample = sampleFromHistory(history, historySample, lambda)
       x2sample = sampleFromHistory(history, historySample, lambda)
 
-      ## Make diffs
-     for i in 1:lambda
-       x1 = history[convert(Int64,historySample[i])][:, x1sample[i]]
-       x2 = history[convert(Int64,historySample[i])][:, x2sample[i]]
+      # Make diffs
+      for i in 1:lambda
+        x1 = history[convert(Int64,historySample[i])][:, x1sample[i]]
+        x2 = history[convert(Int64,historySample[i])][:, x2sample[i]]
 
-       diffs[:, i].= sqrt(cc) * ((x1 - x2) + randn(1).* dMean[:, convert(Int64,historySample[i])]) + pc[:, convert(Int64,historySample2[i])].*sqrt(1 - cc).* randn(1)[1]
-     end
+        diffs[:, i].= sqrt(cc) * ((x1 - x2) + dMean[:, convert(Int64,historySample[i])]).*randn(1) + pc[:, convert(Int64,historySample2[i])].*sqrt(1 - cc).* randn(1)[1]
+      end
 
-     ## New population
+     # New population
      population = newMean.+ diffs.*Ft.+ reshape(tol * (1 - 2 / N^2)^(iter / 2) * rand(Normal(), length(diffs)), N, lambda)./ chiN
      population = deleteInfsNaNs(population)
 
      # Check constraints violations
      # Repair the individual if necessary
      populationTemp = population
-     populationRepaired = apply(population, bounceBackBoundary2) #mapslices(bounceBackBoundary2, population, dims=[1]) # apply(population, 2, bounceBackBoundary2)
-     populationRepaired = reshape( hcat(populationRepaired...), size(populationTemp,1), size(populationTemp, 2)) #dodane
+     populationRepaired = apply(population, bounceBackBoundary2) #mapslices(bounceBackBoundary2, population, dims=[1])
+     populationRepaired = reshape( hcat(populationRepaired...), size(populationTemp,1), size(populationTemp, 2))
      counterRepaired = 0
 
      for tt in 1:size(populationTemp,2)
-      # y = reshape( hcat(populationRepaired...), size(populationTemp,1), size(populationTemp, 2))
        if any(populationTemp[:, tt] != populationRepaired[:, tt])
          counterRepaired = counterRepaired + 1
        end
@@ -378,47 +367,47 @@
 
      if Lamarckism == true
         population = populationRepaired
-      end
+     end
 
-      popMean =  drop(population * weightsPop)
+     popMean =  drop(population * weightsPop)
 
-      ## Evaluation
-      fitness = fn_l(population)
+      # Evaluation
+     fitness = fn_l(population)
 
-      if Lamarckism == false
+     if Lamarckism == false
         fitnessNonLamarcian = fn_d(population, populationRepaired, fitness)
-      end
+     end
 
-      wb = argmin(vec(fitness))
+     wb = argmin(vec(fitness))
 
-      if fitness[wb] < best_fit[1]
+     if fitness[wb] < best_fit[1]
         best_fit = fitness[wb]
         if Lamarckism == true
           best_par = population[:, wb]
         else
           best_par = populationRepaired[:, wb]
         end
-      end
+     end
 
-      ## Check worst fit:
-       ww = argmax(fitness)
-       if fitness[ww] > worst_fit
-         worst_fit = fitness[ww]
-       end
+      # Check worst fit:
+     ww = argmax(fitness)
+     if fitness[ww] > worst_fit
+        worst_fit = fitness[ww]
+     end
 
-      ## Fitness with penalty for nonLamarcian approach
+      # Fitness with penalty for nonLamarcian approach
       if Lamarckism == false
         fitness = fitnessNonLamarcian
       end
 
-      ## Check if the middle point is the best found so far
-      cumMean = 0.2 * newMean.+0.8 * cumMean
+      # Check if the middle point is the best found so far
+      cumMean = 0.2 * newMean.+ 0.8 * cumMean
       cumMeanRepaired = bounceBackBoundary2(cumMean)
 
       fn_cum = fn_l(cumMeanRepaired)
 
       if fn_cum[1] < best_fit[1]
-        best_fit = fn_cum #drop(fn_cum)
+        best_fit = fn_cum
         best_par = cumMeanRepaired
       end
 
@@ -428,6 +417,8 @@
       end
 
     end
+
+
   end
 
     log = []
@@ -473,7 +464,6 @@
 
   end
 
-
 function rnormFromMatrix(m)
   for i in 1:size(m, 1)
     for j in 1:size(m, 2)
@@ -481,7 +471,6 @@ function rnormFromMatrix(m)
     end
   end
 end
-
 
 function crossprod(x)
   if size(x, 2) == 1
