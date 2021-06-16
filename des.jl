@@ -1,6 +1,6 @@
   # differential evolution strategy
   using Distributions
-  using DataArrays
+  #using DataArrays
   using LinearAlgebra
 
   function des(par, fn, lower, upper, control)
@@ -416,6 +416,11 @@
         break
       end
 
+#print(iter)
+#print(": ")
+#print(best_fit)
+#print("\n")
+
     end
 
 
@@ -473,10 +478,7 @@ function rnormFromMatrix(m)
 end
 
 function crossprod(x)
-  if size(x, 2) == 1
     return sum(x.^2)
-  end
-  return transpose(x)*x
 end
 
 function rastrigin(x)
