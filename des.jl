@@ -1,6 +1,5 @@
   # differential evolution strategy
   using Distributions
-  #using DataArrays
   using LinearAlgebra
 
   function des(par, fn, lower, upper, control)
@@ -415,15 +414,7 @@
         msg = "Stop fitness reached."
         break
       end
-
-#print(iter)
-#print(": ")
-#print(best_fit)
-#print("\n")
-
     end
-
-
   end
 
     log = []
